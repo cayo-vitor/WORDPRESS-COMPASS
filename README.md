@@ -26,7 +26,7 @@ A infraestrutura é baseada em:
 
 ### 2️⃣ Criando a Instância EC2 para o WordPress Privada
 1. Vá para *EC2 > Launch Instance*.  
-2. Escolha *Ubuntu 24.04 LTS** como AMI.  
+2. Escolha **Ubuntu 24.04 LTS** como AMI.  
 3. Tipo de instância: *t2.micro* (grátis no Free Tier).  
 4. Selecione sua VPC e a subnet será a privada  
 6. Faça o download da *chave `.pem`* para conectar via SSH.  
