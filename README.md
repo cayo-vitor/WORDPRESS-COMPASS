@@ -177,3 +177,4 @@ docker-compose up -d
 ````
 http://SEU_IP_PUBLICO
 ````
+![image](https://github.com/user-attachments/assets/cba9584f-d50b-46ce-99c7-d4e300086e96)
