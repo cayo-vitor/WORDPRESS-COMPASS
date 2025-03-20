@@ -1,0 +1,14 @@
+#!/bin/bash
+export DEBIAN_FRONTEND=noninteractive
+apt update -y && apt upgrade -y
+apt install -y docker.io docker-compose git nfs-common mysql-server
+systemctl start docker
+systemctl enable docker
+usermod -aG docker ubuntu
+EFS_ID="fs-xxxxxxxxxx"
+REGION="us-east-1"
+mkdir -p /mnt/efs/wordpress
+mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2 $EFS_ID.efs.$REGION.amazonaws.com:/ /mnt/efs
+echo "$EFS_ID.efs.$REGION.amazonaws.com:/ /mnt/efs nfs4 defaults,_netdev 0 0" | tee -a /etc/fstab
+cd /mnt/efs/wordpress
+docker-compose up -d
