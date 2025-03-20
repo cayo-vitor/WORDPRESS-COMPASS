@@ -1,14 +1,36 @@
-#!/bin/bash
-export DEBIAN_FRONTEND=noninteractive
-apt update -y && apt upgrade -y
-apt install -y docker.io docker-compose git nfs-common mysql-server
-systemctl start docker
-systemctl enable docker
-usermod -aG docker ubuntu
-EFS_ID="fs-xxxxxxxxxx"
-REGION="us-east-1"
-mkdir -p /mnt/efs/wordpress
-mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2 $EFS_ID.efs.$REGION.amazonaws.com:/ /mnt/efs
-echo "$EFS_ID.efs.$REGION.amazonaws.com:/ /mnt/efs nfs4 defaults,_netdev 0 0" | tee -a /etc/fstab
-cd /mnt/efs/wordpress
+#!/usr/bin/env bash
+
+sudo yum update -y
+sudo yum upgrade -y
+sudo yum install -y amazon-efs-utils
+
+mkdir -p /mnt/efs
+sudo mount -t efs -o tls "<EFS_DNS>":/ /mnt/efs
+
+sudo yum install docker -y
+sudo usermod -a -G docker ec2-user
+newgrp docker
+sudo systemctl enable docker.service
+sudo systemctl start docker.service
+
+sudo curl -L [https://github.com/docker/compose/releases/latest/download/docker-compose-$](https://github.com/docker/compose/releases/latest/download/docker-compose-$)(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
+
+cat << EOF > /home/ec2-user/docker-compose.yml
+services:
+wordpress:
+image: wordpress:latest
+ports:
+- "80:80"
+environment:
+WORDPRESS_DB_HOST: "<RDS_ENDPOINT>"
+WORDPRESS_DB_USER: "<USER>"
+WORDPRESS_DB_PASSWORD: "<SENHA>"
+WORDPRESS_DB_NAME: "<NOME_DB>"
+volumes:
+- /mnt/efs/wp-content:/var/www/html/wp-content
+restart: always
+EOF
+
+cd /home/ec2-user
 docker-compose up -d
