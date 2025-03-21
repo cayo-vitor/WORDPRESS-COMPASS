@@ -1,36 +1,97 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
-sudo yum update -y
-sudo yum upgrade -y
-sudo yum install -y amazon-efs-utils
+# Definir ambiente não interativo para evitar problemas no APT
+export DEBIAN_FRONTEND=noninteractive
 
-mkdir -p /mnt/efs
-sudo mount -t efs -o tls "<EFS_DNS>":/ /mnt/efs
+# Atualizar pacotes do sistema
+sudo apt-get update -y && sudo apt-get upgrade -y
 
-sudo yum install docker -y
-sudo usermod -a -G docker ec2-user
-newgrp docker
-sudo systemctl enable docker.service
-sudo systemctl start docker.service
+# Instalar dependências necessárias
+sudo apt-get install -y docker.io docker-compose git nfs-common mysql-client unzip curl
 
-sudo curl -L [https://github.com/docker/compose/releases/latest/download/docker-compose-$](https://github.com/docker/compose/releases/latest/download/docker-compose-$)(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose
-sudo chmod +x /usr/local/bin/docker-compose
+# Iniciar e habilitar Docker
+sudo systemctl start docker
+sudo systemctl enable docker
+sudo usermod -aG docker ubuntu
 
-cat << EOF > /home/ec2-user/docker-compose.yml
+# Instalar AWS CLI (caso queira gerenciar via AWS)
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip awscliv2.zip
+sudo ./aws/install
+
+# Criar diretório para EFS
+sudo mkdir -p /mnt/efs
+
+# Configuração do EFS
+EFS_ID="fs-03c78872007068cdb"
+REGION="us-east-1"
+
+# Montar EFS
+sudo mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2 fs-03c78872007068cdb.efs.us-east-1.amazonaws.com:/ /mnt/efs
+
+# Persistir montagem no /etc/fstab
+echo "fs-03c78872007068cdb.efs.us-east-1.amazonaws.com" | sudo tee -a /etc/fstab
+
+# Criar diretório do WordPress
+WORDPRESSPJ=/mnt/efs/wordpress
+sudo mkdir -p $WORDPRESSPJ
+sudo chmod -R 777 $WORDPRESSPJ
+cd $WORDPRESSPJ
+
+# Criar arquivo docker-compose.yml
+sudo tee docker-compose.yml > /dev/null <<EOL
+version: '3.8'
+
 services:
-wordpress:
-image: wordpress:latest
-ports:
-- "80:80"
-environment:
-WORDPRESS_DB_HOST: "<RDS_ENDPOINT>"
-WORDPRESS_DB_USER: "<USER>"
-WORDPRESS_DB_PASSWORD: "<SENHA>"
-WORDPRESS_DB_NAME: "<NOME_DB>"
-volumes:
-- /mnt/efs/wp-content:/var/www/html/wp-content
-restart: always
+  wordpress:
+    image: wordpress:latest
+    container_name: wordpress
+    restart: always
+    ports:
+      - "80:80"
+    environment:
+      WORDPRESS_DB_HOST: "wordpress.cn0q06k0uoyw.us-east-1.rds.amazonaws.com"
+      WORDPRESS_DB_USER: "admin"
+      WORDPRESS_DB_PASSWORD: "fagundes20.05"
+      WORDPRESS_DB_NAME: "wordpress"
+      WORDPRESS_TABLE_PREFIX: "wp_"
+      WORDPRESS_DEBUG: "1"
+    volumes:
+      - /mnt/efs/wordpress:/var/www/html
+EOL
+
+# Criar arquivo wp-config.php manualmente
+sudo tee /mnt/efs/wordpress/wp-config.php > /dev/null <<EOL
+<?php
+define('DB_NAME', 'wordpress');
+define('DB_USER', 'admin');
+define('DB_PASSWORD', '');
+define('DB_HOST', 'rds.amazonaws.com');
+define('DB_CHARSET', 'utf8');
+define('DB_COLLATE', '');
+define('FS_METHOD', 'direct');
+
+\$table_prefix = 'wp_';
+
+define('WP_DEBUG', true);
+if (!defined('ABSPATH')) {
+    define('ABSPATH', _DIR_ . '/');
+}
+require_once ABSPATH . 'wp-settings.php';
+EOL
+
+# Iniciar WordPress com Docker Compose
+sudo docker-compose up -d
+
+# Criar arquivo de Health Check
+sudo tee /mnt/efs/wordpress/healthcheck.php > /dev/null <<EOF
+<?php
+http_response_code(200);
+header('Content-Type: application/json');
+echo json_encode(["status" => "OK", "message" => "Health check passed"]);
+exit;
+?>
 EOF
 
-cd /home/ec2-user
-docker-compose up -d
+# Registro de logs
+echo "Instalação concluída!" >> /var/log/user_data.log
