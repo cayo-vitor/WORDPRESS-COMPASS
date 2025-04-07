@@ -1,6 +1,6 @@
 # 👻 WORDPRESS COM DOCKER NA AWS
 
-## 😽 Esse projeto tem finalidade explicar detalhadamente como configurar um ambiente AWS para hospedar uma aplicação WORDPRESS utilizando docker, incluindo a intalação do docker em uma instância EC2 com ubuntu, configuração do RDS MySQL, integração com EFS e Load Balancer, além claro, do visionamento com git.
+## Esse projeto tem finalidade explicar detalhadamente como configurar um ambiente AWS para hospedar uma aplicação WORDPRESS utilizando docker, incluindo a intalação do docker em uma instância EC2 com ubuntu, configuração do RDS MySQL, integração com EFS e Load Balancer, além claro, do visionamento com git.
 
 ---
 
